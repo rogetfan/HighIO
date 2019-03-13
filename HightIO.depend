@@ -1,5 +1,7 @@
 # depslib dependency file v1.0
-1514140574 source:c:\users\ehuxxue\documents\codeblocks\hightio\main.c
-	<stdio.h>
+1552463744 source:c:\users\ehuxxue\documents\codeblocks\hightio\main.c
+	<winsock2.h>
+	<windows.h>
 	<stdlib.h>
+	<stdio.h>
 
