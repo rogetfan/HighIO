@@ -7,9 +7,10 @@
 #include <iphlpapi.h>
 #include <stdlib.h>
 #include <stdio.h>
+#define WM_SOCK WM_USER+10
 
 #define DEFAULT_BUFLEN 1460
-#define DEFAULT_PORT "9003"           // REMOTE PORT
+#define DEFAULT_PORT "8848"           // REMOTE PORT
 #define DEFAULT_ADDR "0.0.0.0"    // server address
 #define ONE_LINE "\n\r"
 #ifndef MAKEWORD
@@ -17,10 +18,12 @@
 #endif // ~MAKEWORD
 
 
-int main()
+int main(int argc,char **argv)
 {
     WSADATA wsaData;
     SOCKET ListenSocket = INVALID_SOCKET,ClientSocket = INVALID_SOCKET;
+    char recvbuf[DEFAULT_BUFLEN];
+
     // Initialize Winsock
     if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0) {
         printf("WSAStartup failed: %s",ONE_LINE);
@@ -41,7 +44,7 @@ int main()
         return 1;
     }
 
-    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    ListenSocket = WSASocket(result->ai_family, result->ai_socktype, result->ai_protocol,0,0,WSA_FLAG_OVERLAPPED);
     if (ListenSocket == INVALID_SOCKET) {
         printf("Error at socket(): %d%s", WSAGetLastError(),ONE_LINE);
         freeaddrinfo(result);
@@ -58,8 +61,7 @@ int main()
         printf("bind %s successfully!%s",DEFAULT_ADDR,ONE_LINE);
     }
     freeaddrinfo(result);
-
-    if(listen(ListenSocket, SOMAXCONN)==SOCKET_ERROR){
+    if(SOCKET_ERROR==listen(ListenSocket, SOMAXCONN)){
         printf("listen failed with error: %d%s", WSAGetLastError(),ONE_LINE);
         closesocket(ListenSocket);
         WSACleanup();
@@ -67,13 +69,43 @@ int main()
     }else{
         printf("Listen to %s successfully%s",DEFAULT_PORT,ONE_LINE);
     }
-    if (INVALID_SOCKET == (ClientSocket = accept(ListenSocket, NULL, NULL))) {
-        printf("accept failed with error: %d%s", WSAGetLastError(),ONE_LINE);
-        closesocket(ListenSocket);
-        WSACleanup();
-        return 1;
+
+    while(1){
+        if(INVALID_SOCKET == (ClientSocket = accept(ListenSocket, NULL, NULL))) {
+            printf("accept failed with error: %d%s", WSAGetLastError(),ONE_LINE);
+            closesocket(ListenSocket);
+            WSACleanup();
+            return 1;
+        }
+        int recv_len = 1;
+        while(recv_len){
+            recv_len = recv(ClientSocket,recvbuf,DEFAULT_BUFLEN,0);
+            if(recv_len == 0){
+                printf("Connection is closing%s",ONE_LINE);
+                break;
+            }
+            if(recv_len < 0){
+                perror("read socket error");
+            }else{
+                for(int i=0;i<recv_len;i++){
+                    printf("char is %d%s",(int)recvbuf[i],ONE_LINE);
+                }
+                printf("receive length is %d%s",recv_len,ONE_LINE);
+                printf("%s",recvbuf);
+
+            }
+        }
+        if (SOCKET_ERROR == shutdown(ClientSocket, SD_SEND)) {
+            printf("shutdown failed with error: %d\n", WSAGetLastError());
+            closesocket(ClientSocket);
+            WSACleanup();
+            return 1;
+        }else{
+            closesocket(ClientSocket);
+        }
     }
 
     closesocket(ListenSocket);
+    WSACleanup();
     return 0;
 }
