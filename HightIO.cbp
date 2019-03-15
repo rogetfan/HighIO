@@ -37,6 +37,10 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="asynet.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="asynet.h" />
 		<Unit filename="client.c">
 			<Option compilerVar="CC" />
 		</Unit>
