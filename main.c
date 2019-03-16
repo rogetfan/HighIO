@@ -49,7 +49,7 @@ int main(int argc,char **argv)
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     int n_process = si.dwNumberOfProcessors;
-    int n_thread = 2 * n_process;
+    int const n_thread = 2 * n_process;
     printf("there are %d cores",n_process);
     HANDLE init_completion_port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0 );
     HANDLE worker_threads[n_thread];
