@@ -2,8 +2,9 @@
 
 DWORD asyiowork(void* lpvoid){
 
-    printf("Ssss\n");
-
+    while(TRUE){
+        printf("Ssss\n");
+    }
     return (DWORD)0;
 }
 
