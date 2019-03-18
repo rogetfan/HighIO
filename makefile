@@ -16,6 +16,7 @@ RM = del /f
 ifeq ($(RELEASE),0)
     # debug
     CFLAGS += -g -Wno-unused-but-set-variable
+	LFLAGS += -g -Wno-unused-but-set-variable
 else
     # release
     CFLAGS += -static -O3 -DNDEBUG
