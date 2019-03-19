@@ -7,7 +7,7 @@
 
 ## Platform
 * Windows
-* Linux
-* BSD
+* Linux (Coming soon)
+* BSD (Coming soon)
     
  
