@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 
-#define DEFAULT_BUFLEN 146
+#define DEFAULT_BUFLEN 1460
 #define DEFAULT_PORT "8847"       // listen port
 #define DEFAULT_ADDR "0.0.0.0"    // server address
 

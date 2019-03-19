@@ -4,16 +4,23 @@
 
 #include "asynet.h"
 #define ONE_LINE "\n\r"
+#define DEFAULT_BUFLEN 1460
 
-typedef struct _tag_MY_OVERLAPPED
+enum IO_STATE{
+    AS_ACCEPT,
+    AS_READ,
+    AS_WRITE,
+    AS_CLOSE,
+    AS_CONNECT
+};
+
+typedef struct _MY_OVERLAPPED
 {
-    OVERLAPPED m_overlapped;
-    SOCKET m_sClient;
-    long m_lEvent;
-    DWORD m_dwNumberOfBytesRecv;
-    DWORD m_dwFlags;
-    char *m_pszBuf;
-    LONG m_dwBufSize;
+   OVERLAPPED   p_Overlapped;                      
+   SOCKET       p_client_socket;          
+   WSABUF       p_wsa_buf;              
+   char         p_sz_buff[DEFAULT_BUFLEN]; 
+   enum IO_STATE     p_iostate;               
 } PER_OVERLAPPED, *LPPER_OVERLAPPED;
 
 typedef struct _PER_HANDLE_DATA {
@@ -41,17 +48,11 @@ typedef struct _LISTENER_INSTANCE{
     int  *is_fin;
 } LISTENER_INSTANCE,*LPLISTENER_INSTANCE;
 
-enum IO_STATE{
-    AS_ACCEPT,
-    AS_READ,
-    AS_WRITE
-};
-
 HANDLE create_server(LPSERVER_INSTANCE instance);
 
 DWORD asyiowork(void* lpvoid);
 
-int regaccept();
+int _do_accept();
 
 int regread();
 

@@ -6,39 +6,43 @@ static DWORD accpet_listener(LPVOID lpvoid);
 DWORD asyiowork(LPVOID lpvoid){
     HANDLE hIocp = (HANDLE)lpvoid;
     DWORD dwNumberOfBytes = 0;
+    DWORD dwFLAG = 0;
     LPPER_OVERLAPPED lpOverlapped = NULL;
     PER_HANDLE_DATA completionkey;
     int end_loop = 1;
     while (end_loop)
     {
         int bRet = GetQueuedCompletionStatus(hIocp, &dwNumberOfBytes, (PULONG_PTR)&completionkey, (LPOVERLAPPED *) &lpOverlapped, INFINITE);
-        printf("Number is %d\n\r",bRet);
         if (bRet == 0)
         {
             continue;
         }
-        switch (lpOverlapped->m_lEvent)
-        {
-        case FD_ACCEPT:
-            printf("12345");
-            break;
-        case FD_CLOSE: 
-            end_loop = 0;
-            printf("Thread %ld is waiting to exit\n", GetCurrentThreadId());
-            break;
-        case FD_WRITE:
-            printf("Sending data finished......\n");
-            shutdown(lpOverlapped->m_sClient, SD_BOTH);
-            closesocket(lpOverlapped->m_sClient);
-            break;
-        case FD_READ:
-            printf("client>%s", lpOverlapped->m_pszBuf);
-            lpOverlapped->m_lEvent = FD_WRITE;
-            WSABUF buf = {0};
-            buf.buf = lpOverlapped->m_pszBuf;
-            buf.len = dwNumberOfBytes;
-            lpOverlapped->m_dwFlags = 0;
-            WSASend(lpOverlapped->m_sClient, &buf, 1, &lpOverlapped->m_dwNumberOfBytesRecv, lpOverlapped->m_dwFlags, &lpOverlapped->m_overlapped, NULL);
+        switch (lpOverlapped->p_iostate){
+            case AS_ACCEPT:
+                lpOverlapped->p_wsa_buf.buf = lpOverlapped->p_sz_buff;
+                lpOverlapped->p_wsa_buf.len = DEFAULT_BUFLEN;
+                lpOverlapped->p_iostate = AS_READ;
+                WSARecv(lpOverlapped->p_client_socket, &lpOverlapped->p_wsa_buf, 1, &dwNumberOfBytes, &dwFLAG, &lpOverlapped->p_Overlapped, NULL);
+                break;
+            case AS_READ: 
+                printf("Receive Data: %s",lpOverlapped->p_sz_buff);
+                // printf("Thread %ld is waiting to exit\n", GetCurrentThreadId());
+                break;
+            case AS_WRITE:
+                // printf("Sending data finished......\n");
+                // shutdown(lpOverlapped->p_client_socket, SD_BOTH);
+                // closesocket(lpOverlapped->p_client_socket);
+                break;
+            case AS_CLOSE:
+                break;
+                // printf("client>%s", lpOverlapped->m_pszBuf);
+                // lpOverlapped->m_lEvent = FD_WRITE;
+                // WSABUF buf = {0};
+                // buf.buf = lpOverlapped->m_pszBuf;
+                // buf.len = dwNumberOfBytes;
+                // WSASend(lpOverlapped->m_sClient, &buf, 1, &lpOverlapped->m_dwNumberOfBytesRecv, lpOverlapped->m_dwFlags, &lpOverlapped->m_overlapped, NULL);
+            case AS_CONNECT:
+                break;
         }
 
     }
@@ -129,11 +133,12 @@ HANDLE create_server(LPSERVER_INSTANCE instance){
 
 static DWORD accpet_listener(LPVOID lpvoid){
     LPLISTENER_INSTANCE listener_in = (LPLISTENER_INSTANCE)lpvoid;
-    SOCKET accept_socket = INVALID_SOCKET;
+    SOCKET client_socket = INVALID_SOCKET;
     GUID GuidAcceptEx = WSAID_ACCEPTEX;
     //funcion pointer
     LPFN_ACCEPTEX lpfn_accept_ex = NULL;
-    WSAOVERLAPPED ol_overlap;
+    // WSAOVERLAPPED ol_overlap;
+    LPPER_OVERLAPPED p_overlap = NULL;
     DWORD dwBytes;
     int out_buf_len = 2*(sizeof(SOCKADDR_IN) + 16);
     char lp_output_buf[out_buf_len];
@@ -162,27 +167,30 @@ static DWORD accpet_listener(LPVOID lpvoid){
             Sleep(1);
             continue;
         }
-        accept_socket = WSASocket(result->ai_family, result->ai_socktype, result->ai_protocol,0,0,WSA_FLAG_OVERLAPPED);
-        if (accept_socket == INVALID_SOCKET) {
+        client_socket = WSASocket(result->ai_family, result->ai_socktype, result->ai_protocol,0,0,WSA_FLAG_OVERLAPPED);
+        if (client_socket == INVALID_SOCKET) {
             printf("Create accept socket failed with error: %d\n\r", WSAGetLastError());
             closesocket(listener_in->listen_socket);
             WSACleanup();
             return (DWORD)1;
         }
+        p_overlap = (LPPER_OVERLAPPED) malloc(sizeof(PER_OVERLAPPED));
         // Empty our overlapped structure and accept connections.
-        memset(&ol_overlap, 0, sizeof(ol_overlap));
+        memset(&p_overlap->p_Overlapped, 0, sizeof(WSAOVERLAPPED));
+        p_overlap->p_client_socket = client_socket;
+        p_overlap->p_iostate = AS_ACCEPT;
         //Get count of thread associated with CPUs
-        if(lpfn_accept_ex(listener_in->listen_socket, accept_socket, lp_output_buf,\
+        if(lpfn_accept_ex(listener_in->listen_socket, client_socket, lp_output_buf,\
                  out_buf_len - 2*(sizeof(SOCKADDR_IN) + 16),\
                  sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN)+16,\
-                 &dwBytes, &ol_overlap ) == 0 && WSAGetLastError() != 997){
+                 &dwBytes, (WSAOVERLAPPED *)p_overlap ) == 0 && WSAGetLastError() != 997){
             printf("AcceptEx failed with error: %d\n", WSAGetLastError());
-            closesocket(accept_socket);
+            closesocket(client_socket);
             closesocket(listener_in->listen_socket);
             WSACleanup();
             return (DWORD)1;
         }
-        CreateIoCompletionPort((HANDLE) accept_socket, listener_in->init_iocp, (u_long) 0, 0); 
+        CreateIoCompletionPort((HANDLE) client_socket, listener_in->init_iocp, (u_long) 0, 0); 
         WSAResetEvent(e[0]);
     }
     printf("listener is stopped by main thread\n\r");
