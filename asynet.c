@@ -15,19 +15,19 @@ int CALLBACK ConditionAcceptFunc(\
 
 DWORD asyiowork(LPVOID lpvoid){
     HANDLE hIocp = (HANDLE)lpvoid;
-    DWORD dwNumberOfBytes = 0;
+    DWORD dwNumberOfBytes = 1460;
     LPPER_OVERLAPPED lpOverlapped;
     lpOverlapped =(LPPER_OVERLAPPED) malloc(sizeof(PER_OVERLAPPED));
     PER_HANDLE_DATA completionkey;
     int end_loop = 1;
     while (end_loop)
     {
-        int bRet = GetQueuedCompletionStatus(hIocp, &dwNumberOfBytes, (PULONG_PTR)&completionkey, (LPOVERLAPPED*) lpOverlapped, (DWORD)1000);
-        if (bRet < 0)
+        int bRet = GetQueuedCompletionStatus(hIocp, &dwNumberOfBytes, (PULONG_PTR)&completionkey, (LPOVERLAPPED*) lpOverlapped, INFINITE);
+        printf("Number is %d\n\r",bRet);
+        if (bRet == 0)
         {
             continue;
         }
-        printf("Event is %ld",lpOverlapped->m_lEvent);
         switch (lpOverlapped->m_lEvent)
         {
         case FD_ACCEPT:
