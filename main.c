@@ -23,8 +23,8 @@ int main(int argc,char **argv)
     LPFN_ACCEPTEX lpfn_accept_ex = NULL;
     WSAOVERLAPPED ol_overlap;
     DWORD dwBytes;
-    char lp_output_buf[DEFAULT_BUFLEN];
-    int out_buf_len = DEFAULT_BUFLEN;
+    int out_buf_len = 2*(sizeof(SOCKADDR_IN) + 16);
+    char lp_output_buf[out_buf_len];
 
     // Initialize Winsock
     if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0) {
@@ -82,48 +82,11 @@ int main(int argc,char **argv)
     }else{
         printf("Listen to %s successfully%s",DEFAULT_PORT,ONE_LINE);
     }
-    for(int i =0 ;i < 10; ++i){
-    if(WSAIoctl(listen_socket,\
-                SIO_GET_EXTENSION_FUNCTION_POINTER,\
-                &GuidAcceptEx,\
-                sizeof (GuidAcceptEx),\
-                &lpfn_accept_ex,\
-                sizeof (lpfn_accept_ex),
-                &dwBytes, NULL, NULL)== SOCKET_ERROR){
-
-        printf("WSAIoctl failed with error: %d\n\r", WSAGetLastError());
-        closesocket(listen_socket);
-        WSACleanup();
-        return 1;
-    }
-
-    accept_socket = WSASocket(result->ai_family, result->ai_socktype, result->ai_protocol,0,0,WSA_FLAG_OVERLAPPED);
-    if (accept_socket == INVALID_SOCKET) {
-        printf("Create accept socket failed with error: %d\n\r", WSAGetLastError());
-        closesocket(listen_socket);
-        WSACleanup();
-        return 1;
-    }
-    // Empty our overlapped structure and accept connections.
-    memset(&ol_overlap, 0, sizeof(ol_overlap));
-    //Get count of thread associated with CPUs
-    if(lpfn_accept_ex(listen_socket, accept_socket, lp_output_buf,\
-                 out_buf_len - 2*(sizeof(SOCKADDR_IN) + 16),\
-                 sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN)+16,\
-                 &dwBytes, &ol_overlap ) == 0 && WSAGetLastError() != 997){
-        printf("AcceptEx failed with error: %d\n", WSAGetLastError());
-        closesocket(accept_socket);
-        closesocket(listen_socket);
-        WSACleanup();
-        return 1;
-    }
-    CreateIoCompletionPort((HANDLE) accept_socket, init_completion_port, (u_long) 0, 0); 
-    }
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     int n_process = si.dwNumberOfProcessors;
-    //const int n_thread = 2 * n_process;
-    const int n_thread = 1;
+    const int n_thread = 2 * n_process;
+    //const int n_thread = 1;
     printf("there are %d cores%s",n_process,ONE_LINE);
     HANDLE worker_threads[n_thread];
     for(int i=0;i<n_thread;i++){
@@ -131,8 +94,55 @@ int main(int argc,char **argv)
         worker_threads[i] = CreateThread(NULL,0,&asyiowork,init_completion_port,0,&thread_id);
         CloseHandle(worker_threads[i]);
     }
+    printf("FD_ACCEPT is %d\r\n",FD_ACCEPT);
+    printf("FD_WRITE  is %d\r\n",FD_WRITE);
+    printf("FD_OOB  is %d\r\n",FD_OOB);
+    printf("FD_CONNECT is %d\r\n",FD_CONNECT);
+    printf("FD_CLOSE  is %d\r\n",FD_CLOSE);
     puts("Press ESC to exit...");
+    WSAEVENT e[1];
+    e[0] = WSACreateEvent();
+    WSAEventSelect(listen_socket,e[0],FD_ACCEPT);
+    int index;
     while(1){
+        index = WSAWaitForMultipleEvents(1, e, FALSE, INFINITE, FALSE);
+        Sleep(1);
+        printf("Accept result is %d, \r\n",index);
+        if(WSAIoctl(listen_socket,\
+                SIO_GET_EXTENSION_FUNCTION_POINTER,\
+                &GuidAcceptEx,\
+                sizeof (GuidAcceptEx),\
+                &lpfn_accept_ex,\
+                sizeof (lpfn_accept_ex),
+                &dwBytes, NULL, NULL)== SOCKET_ERROR){
+
+            printf("WSAIoctl failed with error: %d\n\r", WSAGetLastError());
+            closesocket(listen_socket);
+            WSACleanup();
+            return 1;
+        }
+        accept_socket = WSASocket(result->ai_family, result->ai_socktype, result->ai_protocol,0,0,WSA_FLAG_OVERLAPPED);
+        if (accept_socket == INVALID_SOCKET) {
+            printf("Create accept socket failed with error: %d\n\r", WSAGetLastError());
+            closesocket(listen_socket);
+            WSACleanup();
+            return 1;
+        }
+        // Empty our overlapped structure and accept connections.
+        memset(&ol_overlap, 0, sizeof(ol_overlap));
+        //Get count of thread associated with CPUs
+        if(lpfn_accept_ex(listen_socket, accept_socket, lp_output_buf,\
+                 out_buf_len - 2*(sizeof(SOCKADDR_IN) + 16),\
+                 sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN)+16,\
+                 &dwBytes, &ol_overlap ) == 0 && WSAGetLastError() != 997){
+            printf("AcceptEx failed with error: %d\n", WSAGetLastError());
+            closesocket(accept_socket);
+            closesocket(listen_socket);
+            WSACleanup();
+            return 1;
+        }
+        CreateIoCompletionPort((HANDLE) accept_socket, init_completion_port, (u_long) 0, 0); 
+        WSAResetEvent(e[0]);
         if(GetAsyncKeyState(VK_ESCAPE)){
             break;
         }
