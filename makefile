@@ -8,7 +8,7 @@ BITS = 64
 CPU = default # ryzen1,ryzen2,default
 # files
 TARGET = highio
-OBJS = asynet.o client.o main.o 
+OBJS = asynet.o client.o main.o server.o
 # in posix system , it is rm -rf
 RM = del /f
 
