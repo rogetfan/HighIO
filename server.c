@@ -7,12 +7,14 @@ DWORD asyiowork(LPVOID lpvoid){
     HANDLE hIocp = (HANDLE)lpvoid;
     DWORD dwNumberOfBytes = 0;
     DWORD dwFLAG = 0;
+
     LPPER_OVERLAPPED lpOverlapped = NULL;
     PER_HANDLE_DATA completionkey;
     int end_loop = 1;
+    int result_len = 0;
     while (end_loop)
     {
-        int bRet = GetQueuedCompletionStatus(hIocp, &dwNumberOfBytes, (PULONG_PTR)&completionkey, (LPOVERLAPPED *) &lpOverlapped, INFINITE);
+        int bRet = GetQueuedCompletionStatus(hIocp, &dwNumberOfBytes, (PULONG_PTR)&completionkey, (LPOVERLAPPED *) &lpOverlapped, 1000);
         if (bRet == 0)
         {
             continue;
@@ -24,8 +26,30 @@ DWORD asyiowork(LPVOID lpvoid){
                 lpOverlapped->p_iostate = AS_READ;
                 WSARecv(lpOverlapped->p_client_socket, &lpOverlapped->p_wsa_buf, 1, &dwNumberOfBytes, &dwFLAG, &lpOverlapped->p_Overlapped, NULL);
                 break;
-            case AS_READ: 
-                printf("Receive Data: %s",lpOverlapped->p_sz_buff);
+            case AS_READ:
+                result_len = lpOverlapped->p_result.len;
+                if(dwNumberOfBytes == DEFAULT_BUFLEN){
+                    if(lpOverlapped->p_result.buf == NULL){
+                        lpOverlapped->p_result.buf = (char *)malloc(DEFAULT_BUFLEN);
+                        lpOverlapped->p_result.len = DEFAULT_BUFLEN;
+                    }else{
+                        lpOverlapped->p_result.buf = (char *)realloc(lpOverlapped->p_result.buf,DEFAULT_BUFLEN);
+                        lpOverlapped->p_result.len += DEFAULT_BUFLEN;
+                    }
+                    memcpy(lpOverlapped->p_result.buf+result_len,lpOverlapped->p_sz_buff,DEFAULT_BUFLEN);
+                    printf("receive data %ld byte,Data: %s\n\r",lpOverlapped->p_Overlapped.InternalHigh,lpOverlapped->p_result.buf);
+                    memset(lpOverlapped->p_sz_buff,-1,DEFAULT_BUFLEN);
+                    lpOverlapped->p_wsa_buf.buf = lpOverlapped->p_sz_buff;
+                    lpOverlapped->p_wsa_buf.len = DEFAULT_BUFLEN;
+                    lpOverlapped->p_iostate = AS_READ;
+                    WSARecv(lpOverlapped->p_client_socket, &lpOverlapped->p_wsa_buf, 1, &dwNumberOfBytes, &dwFLAG, &lpOverlapped->p_Overlapped, NULL);
+                }else if(dwNumberOfBytes < DEFAULT_BUFLEN ){
+                    printf("result is %s",lpOverlapped->p_result.buf);
+                    puts("Sending data finished");
+                }else {
+
+                }
+
                 // printf("Thread %ld is waiting to exit\n", GetCurrentThreadId());
                 break;
             case AS_WRITE:
@@ -111,7 +135,7 @@ HANDLE create_server(LPSERVER_INSTANCE instance){
         printf("Listen to %s successfully!%s",server_in->port,ONE_LINE);
     }
     int thread_len = server_in->io_core*2;
-    printf("there are %d cores in your machine , io thread count will be %d%s",thread_len,thread_len,ONE_LINE);
+    printf("there are %d cores in your machine , io thread count will be %d%s",server_in->io_core,thread_len,ONE_LINE);
     HANDLE worker_threads[thread_len];
     for(int i=0;i<thread_len;i++){
         DWORD thread_id = (DWORD)i;
@@ -179,6 +203,8 @@ static DWORD accpet_listener(LPVOID lpvoid){
         memset(&p_overlap->p_Overlapped, 0, sizeof(WSAOVERLAPPED));
         p_overlap->p_client_socket = client_socket;
         p_overlap->p_iostate = AS_ACCEPT;
+        p_overlap->p_result.buf = NULL;
+        p_overlap->p_result.len = 0;
         //Get count of thread associated with CPUs
         if(lpfn_accept_ex(listener_in->listen_socket, client_socket, lp_output_buf,\
                  out_buf_len - 2*(sizeof(SOCKADDR_IN) + 16),\

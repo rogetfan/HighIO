@@ -4,7 +4,7 @@
 
 #include "asynet.h"
 #define ONE_LINE "\n\r"
-#define DEFAULT_BUFLEN 1460
+#define DEFAULT_BUFLEN 4
 
 enum IO_STATE{
     AS_ACCEPT,
@@ -20,6 +20,7 @@ typedef struct _MY_OVERLAPPED
    SOCKET       p_client_socket;          
    WSABUF       p_wsa_buf;              
    char         p_sz_buff[DEFAULT_BUFLEN]; 
+   WSABUF       p_result;
    enum IO_STATE     p_iostate;               
 } PER_OVERLAPPED, *LPPER_OVERLAPPED;
 

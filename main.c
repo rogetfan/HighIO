@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-
-#define DEFAULT_BUFLEN 1460
 #define DEFAULT_PORT "8847"       // listen port
 #define DEFAULT_ADDR "0.0.0.0"    // server address
 
@@ -29,11 +27,6 @@ int main(int argc,char **argv)
     int n_process = si.dwNumberOfProcessors;
     server_in->io_core = 2 * n_process; // count of io_worker thread
     create_server(server_in);
-    // printf("FD_ACCEPT is %d\r\n",FD_ACCEPT);
-    // printf("FD_WRITE  is %d\r\n",FD_WRITE);
-    // printf("FD_OOB  is %d\r\n",FD_OOB);
-    // printf("FD_CONNECT is %d\r\n",FD_CONNECT);
-    // printf("FD_CLOSE  is %d\r\n",FD_CLOSE);
     puts("Press ESC to stop...");
     while(1){
         if(GetAsyncKeyState(VK_ESCAPE)){
