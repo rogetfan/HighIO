@@ -4,7 +4,7 @@
 
 #include "asynet.h"
 #define ONE_LINE "\n\r"
-#define DEFAULT_BUFLEN 4
+#define DEFAULT_BUFLEN 1460
 
 enum IO_STATE{
     AS_ACCEPT,
@@ -18,9 +18,10 @@ typedef struct _MY_OVERLAPPED
 {
    OVERLAPPED   p_Overlapped;                      
    SOCKET       p_client_socket;          
-   WSABUF       p_wsa_buf;              
+   WSABUF       p_wsa_buf;
+   WSABUF       p_wsa_cache;
+   char         p_rz_buff[DEFAULT_BUFLEN];              
    char         p_sz_buff[DEFAULT_BUFLEN]; 
-   WSABUF       p_result;
    enum IO_STATE     p_iostate;               
 } PER_OVERLAPPED, *LPPER_OVERLAPPED;
 
@@ -53,18 +54,9 @@ HANDLE create_server(LPSERVER_INSTANCE instance);
 
 DWORD asyiowork(void* lpvoid);
 
-int _do_accept();
+int   _do_accept(LPPER_OVERLAPPED lpOverlapped);
+WSABUF _do_read(LPPER_OVERLAPPED lpOverlapped,DWORD dwNumberOfBytes);
+int   _do_write();
 
-int regread();
-
-int regwrite();
-
-// build windows socket
 int buildnet();
-
-// clear windows socket
 int destnet();
-
-int loadnet();
-
-int unload();

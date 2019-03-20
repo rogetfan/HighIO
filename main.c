@@ -25,7 +25,7 @@ int main(int argc,char **argv)
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     int n_process = si.dwNumberOfProcessors;
-    server_in->io_core = 2 * n_process; // count of io_worker thread
+    server_in->io_core = n_process; // count of io_worker thread
     create_server(server_in);
     puts("Press ESC to stop...");
     while(1){
@@ -36,7 +36,7 @@ int main(int argc,char **argv)
     }
     Sleep(2000);
     free(server_in);
-    puts("Press Any Key to exit...");
+    puts("Press Enter to exit...");
     getchar();
     exit(0);
 }
